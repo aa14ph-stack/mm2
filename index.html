@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIP PREDICTOR SCRIPT V2</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background-color: #050505; color: #00ffcc; font-family: 'Share Tech Mono', 'Tajawal', monospace; height: 100vh; overflow: hidden; display: flex; justify-content: center; align-items: center; position: relative; }
+        #canvas-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; opacity: 0.3; }
+        .screen { position: relative; z-index: 10; width: 90%; max-width: 420px; display: none; flex-direction: column; align-items: center; }
+        .screen.active { display: flex; animation: fadeIn 0.5s ease-in-out; }
+        
+        /* الصناديق الزجاجية */
+        .glass-box { position: relative; background: rgba(10, 10, 15, 0.8); padding: 30px; border-radius: 15px; width: 100%; text-align: center; backdrop-filter: blur(10px); border: 1px solid rgba(0, 255, 204, 0.3); box-shadow: 0 0 20px rgba(0,255,204,0.1);}
+        
+        /* شاشة الدخول */
+        .title { font-size: 24px; margin-bottom: 20px; color: #fff; text-shadow: 0 0 10px #00ffcc; letter-spacing: 2px; }
+        input { width: 100%; padding: 15px; background: rgba(0, 255, 204, 0.05); border: 1px solid #00ffcc; color: #fff; font-size: 16px; border-radius: 8px; outline: none; text-align: center; font-family: 'Share Tech Mono', monospace; transition: 0.3s; margin-bottom: 15px;}
+        input:focus { box-shadow: 0 0 15px rgba(0, 255, 204, 0.5); background: rgba(0, 255, 204, 0.1); }
+        button { width: 100%; padding: 15px; background: transparent; border: 2px solid #00ffcc; color: #00ffcc; font-size: 18px; font-weight: bold; border-radius: 8px; cursor: pointer; transition: 0.3s; font-family: 'Tajawal', sans-serif; }
+        button:hover { background: #00ffcc; color: #000; box-shadow: 0 0 20px #00ffcc; }
+        
+        .error-msg { color: #ff3b3b; font-size: 14px; margin-bottom: 10px; display: none; font-family: 'Tajawal'; }
+
+        /* شاشة التحميل */
+        .terminal { width: 100%; height: 200px; background: #000; border: 1px solid #333; padding: 15px; color: #0f0; font-size: 14px; text-align: left; overflow: hidden; border-radius: 8px; direction: ltr; }
+
+        /* الشاشة الرئيسية */
+        .info-bar { display: flex; justify-content: space-between; width: 100%; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px;}
+        .info-bar div { font-size: 16px; color: #fff; }
+        .info-bar span { color: #00ffcc; font-weight: bold; }
+
+        .radar-container { position: relative; width: 220px; height: 220px; display: flex; justify-content: center; align-items: center; margin: 20px 0; }
+        .radar-ring { position: absolute; border-radius: 50%; border: 2px solid transparent; border-top-color: #00ffcc; border-bottom-color: #ff00ff; animation: spin 2s linear infinite; }
+        .ring1 { width: 100%; height: 100%; animation-duration: 3s; }
+        .ring2 { width: 85%; height: 85%; border-top-color: #ff00ff; border-bottom-color: #00ffcc; animation-duration: 2s; animation-direction: reverse; }
+        .multiplier-display { font-size: 45px; color: #fff; text-shadow: 0 0 20px #00ffcc, 0 0 40px #00ffcc; font-weight: bold; z-index: 5; }
+
+        .status-box { background: rgba(0, 255, 204, 0.1); border: 1px solid #00ffcc; padding: 10px; border-radius: 10px; font-size: 16px; color: #fff; margin-bottom: 20px; width: 100%; text-align: center;}
+
+        /* قسم الهاك */
+        .hack-section { background: rgba(255, 0, 255, 0.1); border: 1px solid #ff00ff; padding: 15px; border-radius: 10px; width: 100%; }
+        .hack-section h3 { color: #ff00ff; font-size: 16px; margin-bottom: 10px; }
+        .hack-btn { border-color: #ff00ff; color: #ff00ff; }
+        .hack-btn:hover { background: #ff00ff; color: #fff; box-shadow: 0 0 20px #ff00ff; }
+        .hack-btn:disabled { border-color: #555; color: #555; cursor: not-allowed; background: transparent; box-shadow: none; }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+    </style>
+</head>
+<body>
+
+    <canvas id="canvas-bg"></canvas>
+
+    <div class="screen active" id="screen-login">
+        <div class="glass-box">
+            <h2 class="title">SYSTEM LOGIN</h2>
+            <div class="error-msg" id="errorMsg">ID غير موجود في السيرفر!</div>
+            <input type="number" id="userId" placeholder="أدخل ID اللعبة المكون من 5 أرقام" autocomplete="off">
+            <button onclick="verifyAndConnect()">اتصال بالسيرفر</button>
+        </div>
+    </div>
+
+    <div class="screen" id="screen-loading">
+        <h2 style="color: #00ffcc; margin-bottom: 15px;">CONNECTING...</h2>
+        <div class="terminal" id="terminal"></div>
+    </div>
+
+    <div class="screen" id="screen-main">
+        <div class="glass-box">
+            
+            <div class="info-bar">
+                <div>ID: <span id="displayId">---</span></div>
+                <div>الرصيد: <span id="displayBalance">0.00</span> EGP</div>
+            </div>
+
+            <div class="status-box" id="game-status">جاري الاتصال...</div>
+
+            <div class="radar-container">
+                <div class="radar-ring ring1"></div>
+                <div class="radar-ring ring2"></div>
+                <div class="multiplier-display" id="prediction-value">WAIT</div>
+            </div>
+
+            <div class="hack-section">
+                <h3>⚡ تشغيل اللعبة تلقائي (Auto-Hack)</h3>
+                <input type="number" id="hackBetAmount" value="20" placeholder="مبلغ الرهان">
+                <button class="hack-btn" id="btnHack" onclick="sendAutoHackCommand()">تفعيل السحب التلقائي</button>
+            </div>
+
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, get, child, onValue, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCAdioWu9Luc-5db2jR6g1Xx-AZYRZPblQ",
+            databaseURL: "https://gghh-cf9dd-default-rtdb.firebaseio.com",
+            projectId: "gghh-cf9dd",
+            storageBucket: "gghh-cf9dd.firebasestorage.app"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        let currentSessionId = null;
+        let predictedTarget = 1.00;
+
+        const screenLogin = document.getElementById('screen-login');
+        const screenLoading = document.getElementById('screen-loading');
+        const screenMain = document.getElementById('screen-main');
+        const errorMsg = document.getElementById('errorMsg');
+        const terminal = document.getElementById('terminal');
+        const btnHack = document.getElementById('btnHack');
+
+        // التحقق من صحة الـ ID قبل الاتصال
+        window.verifyAndConnect = async function() {
+            const inputVal = document.getElementById('userId').value.trim();
+            if (!inputVal) return;
+
+            errorMsg.style.display = 'none';
+            btnHack.disabled = true; // تعطل الزر حتى يبدأ العد التنازلي
+            
+            try {
+                const dbRef = ref(db);
+                const snapshot = await get(child(dbRef, `sessions/${inputVal}`));
+                
+                if (snapshot.exists()) {
+                    currentSessionId = inputVal;
+                    document.getElementById('displayId').textContent = currentSessionId;
+                    startConnectionAnimation();
+                } else {
+                    errorMsg.style.display = 'block';
+                }
+            } catch (error) {
+                console.error(error);
+                errorMsg.textContent = "خطأ في الاتصال بالشبكة";
+                errorMsg.style.display = 'block';
+            }
+        }
+
+        function startConnectionAnimation() {
+            screenLogin.classList.remove('active');
+            screenLoading.classList.add('active');
+
+            const logs = [
+                "[*] SCANNING DATABASE...",
+                `[*] SESSION ID ${currentSessionId} FOUND!`,
+                "[*] BYPASSING SECURITY PROTOCOLS...",
+                "[*] SYNCING BALANCE AND PREDICTIONS...",
+                "[+] ACCESS GRANTED!"
+            ];
+
+            let i = 0;
+            terminal.innerHTML = "";
+            const interval = setInterval(() => {
+                if (i < logs.length) {
+                    terminal.innerHTML += logs[i] + "<br>";
+                    terminal.scrollTop = terminal.scrollHeight;
+                    i++;
+                } else {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        screenLoading.classList.remove('active');
+                        screenMain.classList.add('active');
+                        startListeningToGame();
+                    }, 1000);
+                }
+            }, 500);
+        }
+
+        let isDecrypting = false;
+        let lastTimestamp = null;
+
+        function startListeningToGame() {
+            const sessionRef = ref(db, `sessions/${currentSessionId}`);
+            
+            onValue(sessionRef, (snapshot) => {
+                const data = snapshot.val();
+                if (!data) return;
+
+                // تحديث الرصيد الحي
+                document.getElementById('displayBalance').textContent = data.balance;
+                predictedTarget = parseFloat(data.predictedCrash);
+
+                const gameStatus = document.getElementById('game-status');
+                const predictionValue = document.getElementById('prediction-value');
+
+                if (data.status === "countdown") {
+                    gameStatus.textContent = "الاستعداد للطيران (متاح تفعيل الهاك)";
+                    gameStatus.style.color = "#ffc107";
+                    gameStatus.style.borderColor = "#ffc107";
+                    
+                    btnHack.disabled = false; // السماح بوضع أمر هاك
+                    btnHack.textContent = "تفعيل السحب التلقائي";
+
+                    if (data.timestamp !== lastTimestamp) {
+                        lastTimestamp = data.timestamp;
+                        startDecryptAnimation(data.predictedCrash);
+                    }
+                } 
+                else if (data.status === "flying") {
+                    gameStatus.textContent = "الطائرة في الهواء الآن";
+                    gameStatus.style.color = "#00ffcc";
+                    gameStatus.style.borderColor = "#00ffcc";
+                    btnHack.disabled = true; // لا يمكن إرسال الأمر وهي تطير
+                    if(!isDecrypting) predictionValue.textContent = parseFloat(data.predictedCrash).toFixed(2) + "x";
+                } 
+                else if (data.status === "crashed") {
+                    gameStatus.textContent = "تحطمت الطائرة";
+                    gameStatus.style.color = "#ff3b3b";
+                    gameStatus.style.borderColor = "#ff3b3b";
+                    btnHack.disabled = true;
+                    predictionValue.textContent = "CRASH";
+                }
+            });
+        }
+
+        // إرسال أمر اللعب والسحب التلقائي للعبة الأصلية
+        window.sendAutoHackCommand = function() {
+            const betAmount = parseFloat(document.getElementById('hackBetAmount').value);
+            if (isNaN(betAmount) || betAmount <= 0) {
+                alert("أدخل مبلغ صحيح"); return;
+            }
+
+            // حساب وقت السحب (قبل التحطم بـ 0.05)
+            // نستخدم Math.max للتأكد إنه مش أقل من 1.01
+            const safeCashout = Math.max(1.01, predictedTarget - 0.05).toFixed(2);
+
+            // رفع الأمر لـ Firebase
+            update(ref(db, `sessions/${currentSessionId}/autoBetCommand`), {
+                active: true,
+                amount: betAmount,
+                cashoutTarget: parseFloat(safeCashout),
+                executed: false
+            }).then(() => {
+                btnHack.textContent = "✅ تم الإرسال للعبة بنجاح";
+                btnHack.disabled = true;
+            });
+        }
+
+        function startDecryptAnimation(targetNumber) {
+            isDecrypting = true;
+            const predictionValue = document.getElementById('prediction-value');
+            predictionValue.style.textShadow = "0 0 20px #ff00ff";
+            
+            let ticks = 0;
+            const decryptInterval = setInterval(() => {
+                predictionValue.textContent = (Math.random() * 20 + 1).toFixed(2) + "x";
+                ticks++;
+                if (ticks >= 20) {
+                    clearInterval(decryptInterval);
+                    predictionValue.textContent = parseFloat(targetNumber).toFixed(2) + "x";
+                    predictionValue.style.textShadow = "0 0 20px #00ffcc, 0 0 40px #00ffcc";
+                    isDecrypting = false;
+                }
+            }, 50);
+        }
+
+        // رسم الخلفية
+        const canvas = document.getElementById('canvas-bg');
+        const ctx = canvas.getContext('2d');
+        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resizeCanvas); resizeCanvas();
+        const particles = [];
+        for (let i = 0; i < 50; i++) particles.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, size: Math.random()*2, speedY: Math.random()*2+0.5 });
+        function drawBackground() {
+            ctx.fillStyle = 'rgba(5, 5, 5, 0.2)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#00ffcc';
+            particles.forEach(p => {
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+                p.y += p.speedY; if (p.y > canvas.height) { p.y = 0; p.x = Math.random() * canvas.width; }
+            });
+            requestAnimationFrame(drawBackground);
+        }
+        drawBackground();
+
+    </script>
+</body>
+</html>
